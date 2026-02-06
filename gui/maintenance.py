@@ -25,13 +25,12 @@ class MaintenanceFuelWindow(tk.Toplevel):
         self._build_ui()
         self._load_data()
 
-    # ---------------- UI ----------------
+    # ================= UI =================
 
     def _build_ui(self):
         notebook = ttk.Notebook(self)
         notebook.pack(fill=tk.BOTH, expand=True)
 
-        # Tabs
         self.maintenance_tab = tk.Frame(notebook)
         self.fuel_tab = tk.Frame(notebook)
 
@@ -87,6 +86,7 @@ class MaintenanceFuelWindow(tk.Toplevel):
             command=self._open_add_fuel,
         ).pack(side=tk.LEFT)
 
+        # ✅ AJOUT DE LA COLONNE consommation
         columns = (
             "vehicule",
             "employe",
@@ -94,6 +94,7 @@ class MaintenanceFuelWindow(tk.Toplevel):
             "quantite_litres",
             "cout",
             "kilometrage",
+            "consommation",
         )
 
         self.fuel_tree = ttk.Treeview(
@@ -108,7 +109,7 @@ class MaintenanceFuelWindow(tk.Toplevel):
 
         self.fuel_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    # ---------------- Data ----------------
+    # ================= Data =================
 
     def _load_data(self):
         self._load_maintenances()
@@ -144,10 +145,11 @@ class MaintenanceFuelWindow(tk.Toplevel):
                     f["quantite_litres"],
                     f["cout"],
                     f["kilometrage"],
+                    f["consommation"],  # ✅ AFFICHAGE CONSO
                 ),
             )
 
-    # ---------------- Actions ----------------
+    # ================= Actions =================
 
     def _open_add_maintenance(self):
         AddMaintenanceWindow(self, on_save=self._load_maintenances)
@@ -174,12 +176,10 @@ class AddMaintenanceWindow(tk.Toplevel):
         self.entries = {}
 
         tk.Label(self, text="Véhicule").pack(pady=(10, 0))
-        self.vehicles = get_vehicles()
+        vehicles = get_vehicles()
         self.vehicle_var = tk.StringVar()
-        self.vehicle_map = {
-            f'{v["immatriculation"]}': v["id"]
-            for v in self.vehicles
-        }
+        self.vehicle_map = {v["immatriculation"]: v["id"] for v in vehicles}
+
         ttk.Combobox(
             self,
             textvariable=self.vehicle_var,
@@ -198,31 +198,18 @@ class AddMaintenanceWindow(tk.Toplevel):
 
         for key, label in fields:
             tk.Label(self, text=label).pack(pady=(10, 0))
-            entry = tk.Entry(self)
-            entry.pack(fill=tk.X, padx=20)
-            self.entries[key] = entry
+            e = tk.Entry(self)
+            e.pack(fill=tk.X, padx=20)
+            self.entries[key] = e
 
-        tk.Button(
-            self,
-            text="Enregistrer",
-            command=self._save,
-        ).pack(pady=20)
+        tk.Button(self, text="Enregistrer", command=self._save).pack(pady=20)
 
     def _save(self):
         try:
             vehicule_id = self.vehicle_map[self.vehicle_var.get()]
-        except KeyError:
-            messagebox.showerror("Erreur", "Véhicule requis")
-            return
-
-        data = {k: e.get().strip() or None for k, e in self.entries.items()}
-
-        try:
-            add_maintenance(
-                vehicule_id=vehicule_id,
-                **data,
-            )
-        except MaintenanceError as e:
+            data = {k: v.get().strip() or None for k, v in self.entries.items()}
+            add_maintenance(vehicule_id=vehicule_id, **data)
+        except (KeyError, MaintenanceError) as e:
             messagebox.showerror("Erreur", str(e))
             return
 
@@ -231,7 +218,7 @@ class AddMaintenanceWindow(tk.Toplevel):
 
 
 # =========================================================
-# Add Fuel Popup
+# Add Fuel Popup (MODIFIÉ PROPREMENT)
 # =========================================================
 
 class AddFuelWindow(tk.Toplevel):
@@ -248,12 +235,10 @@ class AddFuelWindow(tk.Toplevel):
         self.entries = {}
 
         tk.Label(self, text="Véhicule").pack(pady=(10, 0))
-        self.vehicles = get_vehicles()
+        vehicles = get_vehicles()
         self.vehicle_var = tk.StringVar()
-        self.vehicle_map = {
-            f'{v["immatriculation"]}': v["id"]
-            for v in self.vehicles
-        }
+        self.vehicle_map = {v["immatriculation"]: v["id"] for v in vehicles}
+
         ttk.Combobox(
             self,
             textvariable=self.vehicle_var,
@@ -262,12 +247,10 @@ class AddFuelWindow(tk.Toplevel):
         ).pack(fill=tk.X, padx=20)
 
         tk.Label(self, text="Employé").pack(pady=(10, 0))
-        self.employees = get_all_employees()
+        employees = get_all_employees()
         self.employee_var = tk.StringVar()
-        self.employee_map = {
-            f'{e["prenom"]} {e["nom"]}': e["id"]
-            for e in self.employees
-        }
+        self.employee_map = {f'{e["prenom"]} {e["nom"]}': e["id"] for e in employees}
+
         ttk.Combobox(
             self,
             textvariable=self.employee_var,
@@ -285,33 +268,30 @@ class AddFuelWindow(tk.Toplevel):
 
         for key, label in fields:
             tk.Label(self, text=label).pack(pady=(10, 0))
-            entry = tk.Entry(self)
-            entry.pack(fill=tk.X, padx=20)
-            self.entries[key] = entry
+            e = tk.Entry(self)
+            e.pack(fill=tk.X, padx=20)
+            self.entries[key] = e
 
-        tk.Button(
-            self,
-            text="Enregistrer",
-            command=self._save,
-        ).pack(pady=20)
+        tk.Button(self, text="Enregistrer", command=self._save).pack(pady=20)
 
     def _save(self):
         try:
             vehicule_id = self.vehicle_map[self.vehicle_var.get()]
             employe_id = self.employee_map[self.employee_var.get()]
-        except KeyError:
-            messagebox.showerror("Erreur", "Sélections invalides")
-            return
 
-        data = {k: e.get().strip() or None for k, e in self.entries.items()}
-
-        try:
             add_fuel_entry(
                 vehicule_id=vehicule_id,
                 employe_id=employe_id,
-                **data,
+                date=self.entries["date"].get(),
+                quantite_litres=float(self.entries["quantite_litres"].get()),
+                cout=float(self.entries["cout"].get()),
+                kilometrage=int(self.entries["kilometrage"].get())
+                if self.entries["kilometrage"].get()
+                else None,
+                station=self.entries["station"].get() or None,
             )
-        except FuelError as e:
+
+        except (ValueError, KeyError, FuelError) as e:
             messagebox.showerror("Erreur", str(e))
             return
 

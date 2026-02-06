@@ -10,6 +10,7 @@ from services.dashboard_service import (
 from gui.vehicles import VehicleManagementWindow
 from gui.employees import EmployeeManagementWindow
 from gui.reservations import ReservationWindow
+from gui.alerte_window import AlertsWindow
 from gui.maintenance import MaintenanceFuelWindow
 from gui.documents import DocumentManagementWindow
 from gui.reports import ReportsWindow
@@ -68,7 +69,13 @@ class DashboardWindow(tk.Toplevel):
 
         ttk.Button(
             nav_frame,
-            text="📄 Documents",
+            text="Alertes & échéances",
+            command=lambda: AlertsWindow(self),
+        ).pack(fill="x", pady=2)
+
+        ttk.Button(
+            nav_frame,
+            text="Documents",
             command=lambda: DocumentManagementWindow(self),
         ).pack(fill="x", pady=2)
 

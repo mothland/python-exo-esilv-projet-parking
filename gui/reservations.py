@@ -1,6 +1,6 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from datetime import date
+from tkinter import ttk, messagebox, simpledialog
+from datetime import date, datetime
 
 from services.reservation_service import (
     get_all_reservations,
@@ -11,6 +11,10 @@ from services.reservation_service import (
 from services.vehicle_service import get_available_vehicles
 from services.employee_service import get_all_employees
 
+
+# =========================================================
+# MAIN WINDOW
+# =========================================================
 
 class ReservationWindow(tk.Toplevel):
 
@@ -48,11 +52,7 @@ class ReservationWindow(tk.Toplevel):
             "statut",
         )
 
-        self.tree = ttk.Treeview(
-            self,
-            columns=columns,
-            show="headings",
-        )
+        self.tree = ttk.Treeview(self, columns=columns, show="headings")
 
         for col in columns:
             self.tree.heading(col, text=col.replace("_", " ").title())
@@ -100,20 +100,49 @@ class ReservationWindow(tk.Toplevel):
 
         reservation_id = int(selected[0])
 
+        km_retour = simpledialog.askinteger(
+            "Retour véhicule",
+            "Entrez le kilométrage au retour :",
+            parent=self,
+            minvalue=0
+        )
+
+        if km_retour is None:
+            return
+
+        etat = simpledialog.askstring(
+            "État du véhicule",
+            "État du véhicule (propre / sale / endommage) :",
+            parent=self
+        )
+
+        if not etat:
+            messagebox.showerror("Erreur", "État du véhicule obligatoire")
+            return
+
+        carburant = simpledialog.askstring(
+            "Carburant",
+            "Niveau de carburant au retour :",
+            parent=self
+        )
+
         try:
             return_vehicle(
                 reservation_id=reservation_id,
-                date_retour_reelle=date.today().isoformat(),
+                km_retour=km_retour,
+                etat_retour=etat.lower(),
+                niveau_carburant=carburant,
             )
         except ReservationError as e:
             messagebox.showerror("Erreur", str(e))
             return
 
+        messagebox.showinfo("Succès", "Retour du véhicule enregistré")
         self._load_reservations()
 
 
 # =========================================================
-# Add Reservation Popup
+# ADD RESERVATION WINDOW
 # =========================================================
 
 class AddReservationWindow(tk.Toplevel):
@@ -121,12 +150,14 @@ class AddReservationWindow(tk.Toplevel):
     def __init__(self, parent, on_save):
         super().__init__(parent)
         self.title("Nouvelle réservation / sortie")
-        self.geometry("400x450")
+        self.geometry("420x650")
         self.on_save = on_save
 
         self._build_ui()
 
     def _build_ui(self):
+
+        # Véhicule
         tk.Label(self, text="Véhicule").pack(pady=(10, 0))
         self.vehicles = get_available_vehicles()
         self.vehicle_var = tk.StringVar()
@@ -141,6 +172,7 @@ class AddReservationWindow(tk.Toplevel):
             state="readonly",
         ).pack(fill=tk.X, padx=20)
 
+        # Employé
         tk.Label(self, text="Employé").pack(pady=(10, 0))
         self.employees = get_all_employees()
         self.employee_var = tk.StringVar()
@@ -155,30 +187,90 @@ class AddReservationWindow(tk.Toplevel):
             state="readonly",
         ).pack(fill=tk.X, padx=20)
 
+        # ================= SORTIE =================
+        tk.Label(self, text="Date sortie prévue (YYYY-MM-DD)").pack(pady=(10, 0))
+        self.date_sortie_entry = tk.Entry(self)
+        self.date_sortie_entry.insert(0, date.today().isoformat())
+        self.date_sortie_entry.pack(fill=tk.X, padx=20)
+
+        tk.Label(self, text="Heure sortie prévue (HH:MM)").pack(pady=(10, 0))
+        self.heure_sortie_entry = tk.Entry(self)
+        self.heure_sortie_entry.pack(fill=tk.X, padx=20)
+
+        # ================= RETOUR =================
         tk.Label(self, text="Date retour prévue (YYYY-MM-DD)").pack(pady=(10, 0))
         self.date_retour_entry = tk.Entry(self)
         self.date_retour_entry.pack(fill=tk.X, padx=20)
 
-        tk.Button(
-            self,
-            text="Enregistrer",
-            command=self._save,
-        ).pack(pady=20)
+        tk.Label(self, text="Heure retour prévue (HH:MM)").pack(pady=(10, 0))
+        self.heure_retour_entry = tk.Entry(self)
+        self.heure_retour_entry.pack(fill=tk.X, padx=20)
+
+        # Kilométrage départ
+        tk.Label(self, text="Kilométrage départ").pack(pady=(10, 0))
+        self.km_depart_entry = tk.Entry(self)
+        self.km_depart_entry.pack(fill=tk.X, padx=20)
+
+        # Motif
+        tk.Label(self, text="Motif").pack(pady=(10, 0))
+        self.motif_entry = tk.Entry(self)
+        self.motif_entry.pack(fill=tk.X, padx=20)
+
+        # Destination
+        tk.Label(self, text="Destination").pack(pady=(10, 0))
+        self.destination_entry = tk.Entry(self)
+        self.destination_entry.pack(fill=tk.X, padx=20)
+
+        tk.Button(self, text="Enregistrer", command=self._save).pack(pady=20)
 
     def _save(self):
         try:
             vehicule_id = self.vehicle_map[self.vehicle_var.get()]
             employe_id = self.employee_map[self.employee_var.get()]
-        except KeyError:
-            messagebox.showerror("Erreur", "Sélection invalide")
+            km_depart = int(self.km_depart_entry.get())
+        except (KeyError, ValueError):
+            messagebox.showerror("Erreur", "Données invalides")
+            return
+
+        motif = self.motif_entry.get().strip()
+        destination = self.destination_entry.get().strip()
+
+        if not motif or not destination:
+            messagebox.showerror("Erreur", "Motif et destination obligatoires")
+            return
+
+        if not self.date_sortie_entry.get().strip() or not self.date_retour_entry.get().strip():
+            messagebox.showerror("Erreur", "Dates sortie et retour obligatoires")
+            return
+
+        # 🔒 Vérification sortie < retour
+        try:
+            sortie_dt = datetime.strptime(
+                self.date_sortie_entry.get() + " " + self.heure_sortie_entry.get(),
+                "%Y-%m-%d %H:%M"
+            )
+            retour_dt = datetime.strptime(
+                self.date_retour_entry.get() + " " + self.heure_retour_entry.get(),
+                "%Y-%m-%d %H:%M"
+            )
+            if retour_dt <= sortie_dt:
+                messagebox.showerror("Erreur", "La date de retour doit être après la sortie")
+                return
+        except ValueError:
+            messagebox.showerror("Erreur", "Format date ou heure invalide")
             return
 
         try:
             create_reservation(
                 vehicule_id=vehicule_id,
                 employe_id=employe_id,
-                date_sortie=date.today().isoformat(),
-                date_retour_prevue=self.date_retour_entry.get().strip() or None,
+                date_sortie_prevue=self.date_sortie_entry.get(),
+                heure_sortie_prevue=self.heure_sortie_entry.get(),
+                date_retour_prevue=self.date_retour_entry.get(),
+                heure_retour_prevue=self.heure_retour_entry.get(),
+                km_depart=km_depart,
+                motif=motif,
+                destination=destination,
             )
         except ReservationError as e:
             messagebox.showerror("Erreur", str(e))
