@@ -87,7 +87,15 @@ class VehicleManagementWindow(tk.Toplevel):
                     v["modele"],
                     v["type_vehicule"],
                     v["type_affectation"],
-                    status,
+                    v["annee"],
+                    v["date_acquisition"], 
+                    v["kilometrage_actuel"],
+                    v["carburant"], 
+                    v["puissance_fiscale"],
+                    v["photo_path"], 
+                    v["statut"],
+                    v["service_principal"], 
+                    v["seuil_revision_km"]
                 ),
                 tags=(status,),
             )
@@ -121,6 +129,14 @@ class AddVehicleWindow(tk.Toplevel):
             ("modele", "Modèle"),
             ("type_vehicule", "Type de véhicule"),
             ("type_affectation", "Type d'affectation"),
+            ("annee", "Année"),
+            ("date_acquisition", "Date d'acquisition"),
+            ("kilometrage_actuel", "Kilométrage actuel"),
+            ("carburant", "Carburant"),
+            ("puissance_fiscale", "Puissance fiscale"),
+            ("photo_path", "Chemin de la photo"),
+            ("service_principal", "Service principal"),
+            ("seuil_revision_km", "Seuil de révision (km)"),
         ]
 
         for key, label in fields:
